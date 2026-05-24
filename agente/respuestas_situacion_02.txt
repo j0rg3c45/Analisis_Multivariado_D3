@@ -1,0 +1,28 @@
+RESPUESTAS SITUACIÓN 2: Análisis de Préstamos Hipotecarios (Freddie Mac)
+
+1. Construcción del Panel Analítico:
+La metodología propuesta integra las tablas de originación y desempeño mensual en un panel longitudinal. Esto permite observar no solo el estado inicial del crédito (Credit Score, LTV), sino su evolución (Delinquency Status) a través del tiempo.
+
+2. Extracción de Componentes con IVA:
+El uso de Independent Vector Analysis (IVA) permite capturar la dependencia entre tres vistas fundamentales:
+- Vista Préstamo: Monto, tasa, plazo.
+- Vista Prestatario: Score crediticio, ingresos, ratio deuda-ingreso (DTI).
+- Vista Desempeño: Historial de pagos y amortización.
+IVA extrae fuentes comunes que explican el riesgo de manera más compacta que los indicadores individuales.
+
+3. Evaluación e Interpretación:
+Se espera que los componentes latentes identifiquen factores como "Propensión al Prepago" o "Sensibilidad a Tasas", los cuales suelen estar ocultos en los indicadores tradicionales de morosidad pero son críticos para el pricing.
+
+4. Segmentación (Clustering):
+Aplicando GMM o K-means sobre los scores de IVA, se pueden identificar grupos como:
+- Perfil de bajo riesgo / estable.
+- Prestatarios sensibles a ciclos económicos.
+- Créditos con alta probabilidad de prepago.
+
+5. Caracterización de Perfiles:
+La segmentación resultante permite una gestión proactiva:
+- Monitoreo intensivo de clústeres de alto riesgo antes de que ocurra el incumplimiento.
+- Optimización de reservas de capital basadas en la estructura latente del portafolio.
+- Ajuste de políticas de originación para evitar la concentración en clústeres con trayectorias negativas detectadas por IVA.
+
+Conclusión: La integración de IVA y Clustering ofrece una visión multidimensional del riesgo crediticio que supera el análisis univariado tradicional.

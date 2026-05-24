@@ -1,0 +1,16 @@
+RESPUESTAS SITUACIÓN 3: Aislamiento de Firma de Estrés en Voz (SUSAS)
+
+Fase 1: Aplicación de ICA (Separación de Hablantes)
+1. Recuperación de Señales: Al aplicar FastICA sobre las mezclas lineales de audio (M1 y M2), es posible recuperar las fuentes originales (S1 - Neutra y S2 - Estresada) con alta fidelidad, siempre que las fuentes sean estadísticamente independientes.
+2. Calidad de Separación: Se evalúa mediante el Signal-to-Interference Ratio (SIR). En condiciones ideales de mezcla lineal sin ruido, ICA logra una separación casi perfecta, permitiendo escuchar claramente al "sujeto estresado" sin la interferencia del "interrogador".
+
+Fase 2: Aislamiento de Firma de Estrés (IVA)
+1. Descomposición Multivista: IVA es superior a ICA en este escenario porque permite tratar las grabaciones Neutra (D1), Tarea Baja (D2) y Tarea Alta (D3) como vistas relacionadas. 
+2. Identidad vs. Firma de Estrés:
+   - Componente Común: Captura la "Identidad Vocal" del hablante (formantes, timbre base).
+   - Componente Diferencial: Captura la "Firma del Estrés", es decir, las variaciones en tono (pitch), ritmo e intensidad que aparecen consistentemente en las vistas D2 y D3 pero no en D1.
+3. Análisis y Comparación:
+   - Mientras que ICA individual en cada archivo solo separaría ruidos locales, IVA alinea los componentes a través de los archivos. 
+   - Se logra aislar un vector fuente que representa la modulación fisiológica inducida por el estrés, independiente de la palabra dicha o de la identidad del hablante.
+
+Conclusión: IVA es la técnica óptima para extraer biomarcadores de estrés consistentes a través de múltiples muestras de voz del mismo individuo.

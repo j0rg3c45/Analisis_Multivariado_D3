@@ -1,0 +1,142 @@
+Desafío 3
+
+Condiciones:
+๏ Subir la tarea en formato pdf en la plataforma UAO-Virtual.
+๏ Es necesario incluir el código de R, Python o Julia. Mostrar los resultados a partir de tablas, gráficos o indicadores que les permita dar respuesta a los
+planteamientos.
+๏ Deben interpretar los resultados obtenidos en cada situación de acuerdo al contexto.
+
+***********Situación 1
+A partir de los registros históricos de viajes correspondientes a los servicios Yellow Taxi,Green Taxi, For-Hire Vehicles (FHV) y High Volume FHV (formato PARQUET link) de la
+ciudad de Nueva York, integre y analice de manera conjunta estos cuatro conjuntos de datos con el propósito de identificar y estimar estructuras latentes que expliquen los patrones
+multivariados asociados a tres variables de interés operacional:
+1. La probabilidad de que un viaje incluya propina.
+2. La cantidad de pasajeros transportados por viaje.
+3. El monto de propina efectivamente recibido.
+
+Para ello debe construir un modelo multivariado robusto sustentado en técnicas de extracción de factores y de componentes independientes, que incorpore —de manera
+articulada y comparativa— los métodos de Análisis de Componentes Principales (PCA), PCA Disperso (Sparse PCA), Kernel PCA, Análisis de Componentes Independientes (ICA)
+y Independent Vector Analysis (IVA). Adicionalmente, el deberá complementar dicho proceso mediante análisis factorial exploratorio, modelos multivariados con múltiples respuestas
+y técnicas de agrupamiento (clustering), con el propósito de evaluar la estabilidad, interpretabilidad y relevancia operativa de los componentes latentes obtenidos.
+Mediante una evaluación comparativa y sistemática de métodos de reducción de dimensionalidad y aprendizaje no supervisado, ¿cuál es el modelo de estructura factorial
+más robusto, interpretable y válido para caracterizar la dinámica subyacente en los datos de viajes?
+La robustez y validez del modelo final se evaluarán en función de su capacidad para:
+
+1. Interpretabilidad y Parsimonia: Identificar constructos latentes significativos y parsimoniosos (p. ej., "Eficiencia del Viaje", "Costo-Distancia", "Demanda del Cliente").
+2. Coherencia de Segmentación: Producir segmentaciones de viajes (clústeres) que sean analíticamente coherentes y operativamente útiles.
+3. Validez Predictiva: Demostrar una influencia estadísticamente significativa y teóricamente relevante sobre las variables de resultado clave: la probabilidad de recibir
+una propina, la cantidad de pasajeros por viaje y el monto de la propina recibida.
+
+***********Situación 2
+El conjunto de datos Single-Family Fixed-Rate Loan Performance Data ofrece una visión longitudinal y granular del desempeño de préstamos hipotecarios en Estados Unidos. La alta
+dimensionalidad y la interdependencia temporal de estas variables (originación, desempeño mensual, características del prestatario) presentan un desafío analítico. La identificación de
+patrones subyacentes, más allá de los indicadores de riesgo tradicionales, es fundamental para una gestión de cartera proactiva, una tarificación (pricing) precisa y el diseño de políticas
+de originación robustas.
+
+Objetivo General
+Desarrollar un estudio multivariado avanzado para identificar, modelar y caracterizar las estructuras latentes que explican los patrones de comportamiento crediticio observados en el
+portafolio hipotecario, utilizando dichas estructuras para generar una segmentación de riesgo interpretable.
+
+Fases del Estudio (Metodología)
+El estudiante deberá ejecutar secuencialmente las siguientes fases analíticas:
+
+1. Construcción del Panel Analítico: Integrar y preparar las diversas tablas del conjunto de datos (originación, desempeño mensual, atributos del prestatario e inmueble) para construir un
+panel analítico longitudinal y coherente. Este panel debe ser apto para el estudio conjunto de variables de riesgo, capacidad de pago y desempeño histórico.
+
+2. Extracción de Componentes Latentes (IVA): Aplicar el método de Análisis de Vectores Independientes (IVA). El objetivo es extraer componentes multivista que capturen la
+información compartida entre distintos grupos de variables (p. ej., dominios del préstamo, del prestatario y del comportamiento mensual). Se busca que estas fuentes latentes expliquen la
+heterogeneidad multivariada del portafolio de manera compacta.
+
+3. Evaluación e Interpretación de Componentes: Evaluar y contrastar los componentes extraídos mediante IVA con los indicadores tradicionales de riesgo crediticio. El análisis debe  centrarse en la interpretabilidad, estabilidad y relevancia de los componentes para caracterizar patrones de morosidad, prepago, incumplimiento y amortización.
+
+4. Segmentación Basada en Características Latentes: Utilizar las proyecciones (scores) de los componentes independientes obtenidos como base para un proceso de Análisis de
+Conglomerados. Se deberán explorar técnicas como k-means, Gaussian Mixture Models (GMM) o clustering jerárquico para segmentar los préstamos en grupos homogéneos.
+
+5. Caracterización de Perfiles de Riesgo: Interpretar y validar los conglomerados resultantes. La caracterización debe realizarse en términos de perfiles de riesgo, rasgos financieros del
+prestatario y propiedades estructurales del préstamo.
+
+
+
+Resultados Esperados y Evaluación
+Se espera que el análisis finalice con una discusión crítica sobre la utilidad potencial de las segmentaciones encontradas para tareas de gestión de riesgo, monitoreo de cartera o
+políticas de originación. La evaluación se centrará en la demostración de una integración sólida de técnicas avanzadas (IVA y Clustering) y en la capacidad del estudiante para interpretar patrones complejos dentro de un portafolio hipotecario real.
+
+***********Situación 3
+
+Utilizando el conjunto de datos SUSAS (link), que proporciona grabaciones de voz bajo múltiples condiciones de estrés (simulado y real), se plantea un desafío en dos fases para
+evaluar la capacidad de ICA e IVA para aislar y caracterizar la "firma del estrés" como un componente independiente de la señal de voz.
+
+Fase 1: Aplicación de ICA
+En este escenario, simularemos una grabación de dos canales en una sala de interrogatorios donde hablan dos individuos: un "interrogador" (calmado) y un "sujeto" (bajo estrés).
+1. Preparación: Seleccione dos archivos de audio del dataset SUSAS:
+◦ Fuente 1 (S1): Una grabación "Neutra" (sin estrés).
+◦ Fuente 2 (S2): Una grabación "Estresada" (p.ej., High Task Load o Lombard Effect).
+
+2. Simulación: Cree dos "grabaciones de micrófono" (M1 y M2) mediante una mezcla lineal artificial (p.ej., M1 =0.7⋅S1 +0.3⋅S2 ; M2 =0.4⋅S1 +0.6⋅S2 ).
+
+3.Pregunta (ICA): Aplicando el Análisis de Componentes Independientes (ICA), ¿en qué medida es posible separar y recuperar las señales de las fuentes originales (S1 y
+S2) a partir de las mezclas observadas (M1 y M2)? Evalúe la calidad de la separación cualitativa (auditiva) y cuantitativamente (si es posible, usando métricas como SIR -
+Signal-to-Interference Ratio).
+
+Fase 2: Aislamiento de la Firma de Estrés (Aplicación de IVA) 
+
+En este escenario, en lugar de mezclar hablantes, usaremos la estructura multivista de SUSAS. Consideraremos cada condición de estrés como un "conjunto de datos" o "vista" diferente.
+1. Preparación: Seleccione múltiples grabaciones del mismo hablante diciendo la misma palabra, pero bajo diferentes condiciones (vistas). Por ejemplo:
+◦ Vista 1 (D1): Grabación "Neutra".
+◦ Vista 2 (D2): Grabación "Estresada - Tarea Baja".
+◦ Vista 3 (D3): Grabación "Estresada - Tarea Alta".
+
+◦ Nota: Para aplicar IVA, es crucial que las fuentes (componentes) estén correlacionadas o sean dependientes a través de los datasets.
+
+2. Pregunta (IVA): Aplicando el Análisis de Vectores Independientes (IVA), ¿es posible descomponer las señales de voz en vectores fuente que separen la "identidad vocal"
+del hablante (el componente común en todas las vistas) de la "firma del estrés" (el componente que modula la voz de manera consistente a través de las vistas D2 y D3)?
+
+3. Análisis: Interprete los vectores fuente resultantes. ¿Se aisló un componente que represente clara y unívocamente la modulación fisiológica inducida por el estrés?
+¿Cómo se compara este enfoque con un ICA simple aplicado a cada dataset por separado?
+
+
+
+***********Situación 4
+
+Como Cientifico de datos se le ha solicitado realizar un Análisis Multitemporal de Dinámicas de Cobertura Forestal usando Datos de Landsat Science para la Detección de Deforestación y Recuperación.
+El conjunto de datos de Landsat Science, mantenido por la USGS, proporciona el archivo de imágenes satelitales multiespectrales de observación de la Tierra de resolución media más
+largo y continuo, abarcando desde la década de 1970 hasta la actualidad. Estos datos son una fuente autorizada para el análisis de series temporales, permitiendo la derivación de índices de
+vegetación (NDVI, EVI, NBR) para cuantificar procesos de cambio del uso del suelo, deforestación, degradación y recuperación de ecosistemas boscosos a escala global. A partir
+de un subconjunto de datos multitemporales del archivo de Landsat Science para un área de interés específica, desarrollar un estudio multivariado para identificar, aislar y caracterizar las
+estructuras latentes que explican los patrones de cambio en la cobertura forestal.
+
+Se le solicita considerar y ejecutar los siguientes puntos:
+1. Construcción de un Cubo Multivariado Espacio-Temporal:
+• Integrar una serie temporal de imágenes Landsat (p. ej., Landsat 5, 7, 8, 9) para cubrir un período de análisis significativo (mínimo 10-15 años).
+• Extraer las bandas espectrales relevantes (p. ej., Rojo, Infrarrojo Cercano - NIR, Infrarrojo de Onda Corta - SWIR).
+• Calcular índices de vegetación clave asociados a la salud forestal (NDVI, EVI, NBR, NDMI) para cada imagen en la serie temporal.
+• Generar un dataset multivariado (cubo de datos) por píxel, donde cada píxel es una observación y las bandas/índices de cada año son las variables.
+
+2. Identificación de Componentes Latentes (ACP/ICA):
+• Aplicar Análisis de Componentes Principales (ACP) o Sparse PCA al cubo de datos para capturar la variabilidad temporal dominante e identificar los principales modos de
+cambio.
+• Aplicar Análisis de Componentes Independientes (ICA) para intentar separar fuentes independientes de cambio (p. ej., perturbaciones abruptas como incendios,
+degradación progresiva, o recuperación post-evento).
+• Interpretar las componentes resultantes y vincularlas con eventos ecológicos plausibles (p. ej., cambio de uso de suelo, sequías).
+
+3. Aplicación Obligatoria de IVA (Independent Vector Analysis):
+• Tratar diferentes fuentes de variación como "vistas" para un modelo IVA.
+• Las vistas pueden ser: distintos índices de vegetación (p. ej., Vista 1=Serie NDVI, Vista 2=Serie NBR), o datos de diferentes temporadas (p. ej., Vista 1=Estación Seca, Vista 2=Estación Húmeda) a lo largo de los años.
+• El objetivo es identificar componentes independientes multivista que revelen patrones persistentes de deforestación, regeneración o degradación que sean capturados
+simultáneamente por diferentes índices o temporadas.
+
+4. Detección de Zonas de Cambio (Clustering):
+• Sobre los factores o componentes extraídos (de ACP, ICA o IVA), aplicar técnicas de Análisis de Conglomerados (ACO) (p. ej., k-means, GMM) para segmentar los píxeles.
+• El objetivo es identificar regiones espaciales que muestren trayectorias de cambio homogéneas: pérdida significativa de cobertura, estabilidad ecológica, recuperación
+forestal activa, o patrones transicionales.
+• El estudiante deberá generar mapas temáticos claros que muestren la distribución espacial de estos clústeres.
+
+5. Evaluación Cuantitativa del Cambio:
+• Para cada clúster identificado, calcular métricas clave: tasas de deforestación/recuperación anual, magnitud del cambio en los índices y líneas de tendencia temporal.
+• El análisis debe incluir visualización multivariada y mapas que resuman el cambio.
+
+6. Interpretación Ecológica y Conclusiones:
+• Interpretar los factores latentes y los clústeres en términos de procesos ecológicos y antropogénicos reales (expansión agrícola, áreas protegidas, etc.).
+• Discutir las limitaciones (p. ej., cobertura de nubes en datos Landsat) y las aplicaciones de los hallazgos en monitoreo, conservación y políticas ambientales.
+
+
