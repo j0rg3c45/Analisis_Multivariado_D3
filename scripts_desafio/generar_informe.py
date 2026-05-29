@@ -67,7 +67,6 @@ Maestría en Analítica de Big Data — Análisis Multivariado Avanzado
    4. [Modelos Multivariados con Múltiples Respuestas](#14-modelos-multivariados-con-múltiples-respuestas)
    5. [Evaluación Comparativa y Clustering](#15-evaluación-comparativa-y-clustering)
    6. [Modelo Final Recomendado](#16-modelo-final-recomendado)
-2. [Situación 2: Análisis de Préstamos Hipotecarios (Freddie Mac)](#situación-2-análisis-de-préstamos-hipotecarios-freddie-mac)
 3. [Situación 3: Aislamiento de Firma de Estrés en Voz (SUSAS)](#situación-3-aislamiento-de-firma-de-estrés-en-voz-susas)
 4. [Situación 4: Análisis Multitemporal de Cobertura Forestal (Landsat)](#situación-4-análisis-multitemporal-de-cobertura-forestal-landsat)
    1. [Construcción del Cubo Multivariado Espacio-Temporal](#41-construcción-del-cubo-multivariado-espacio-temporal)
@@ -289,11 +288,7 @@ PCA captura el 90% de la varianza original con solo 3 componentes.
 """
 
 def s2():
-    return """\
-## Situación 2: Análisis de Préstamos Hipotecarios (Freddie Mac)
-
-<div style="page-break-after: always;"></div>
-"""
+    return ''
 
 def s3():
     return """\
