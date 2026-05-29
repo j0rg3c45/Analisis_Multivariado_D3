@@ -1,3 +1,4 @@
+import os
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -16,7 +17,8 @@ from sklearn.impute import SimpleImputer
 sns.set_theme(style='whitegrid', palette='viridis')
 
 RANDOM_STATE = 42
-OUT_DIR = 'output/situacion_04/'
+_BASE_DIR = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
+OUT_DIR = os.path.join(_BASE_DIR, 'output', 'situacion_04') + os.sep
 
 def parse_geo(geo_str):
     try:
@@ -38,7 +40,10 @@ def load_and_prepare_data(file_path):
     indices = ['evi', 'nbr', 'ndmi', 'ndvi']
     index_data = {}
     for idx in indices:
-        cols = sorted([c for c in df.columns if idx in c and c != '.geo' and c != 'system:index'])
+        cols = sorted(
+            [c for c in df.columns if f'_{idx}_' in c],
+            key=lambda x: int(x.split('_')[-1])
+        )
         raw_values = df[cols].values.astype(float)
 
         # Validación de escala Landsat Collection 2:
@@ -47,7 +52,7 @@ def load_and_prepare_data(file_path):
         val_max = float(np.nanmax(np.abs(raw_values)))
         if val_max > 1.5:
             corrected = raw_values * 0.0000275 - 0.2
-            scale_note = f'corrección Landsat C2 aplicada (DN→reflectancia)'
+            scale_note = 'correccion Landsat C2 aplicada (DN->reflectancia)'
         else:
             corrected = raw_values
             scale_note = 'valores ya en escala de reflectancia/índice'
@@ -158,7 +163,7 @@ def clustering_analysis(X, method='kmeans', K_range=range(2, 9)):
     return optimal_k, max(sil_scores), sil_scores
 
 def main():
-    file_path = 'data/data_situacion_04/Landsat_Cubo_Espaciotemporal_UAO.csv'
+    file_path = os.path.join(_BASE_DIR, 'Data', 'data_situacion_04', 'Landsat_Cubo_Espaciotemporal_UAO.csv')
 
     # --- [PUNTO 1] ---
     df, index_data, years = load_and_prepare_data(file_path)
@@ -265,7 +270,6 @@ def main():
             print(f'  {idx_name.upper()}: {start_v:.4f} -> {end_v:.4f} | Cambio={change_pct:+.2f}% | Tasa anual={annual_rate:+.2f}%')
 
     # --- VISUALIZACIONES ---
-    import os
     os.makedirs(OUT_DIR, exist_ok=True)
     print('\n[Generando visualizaciones...]')
 

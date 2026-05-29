@@ -1,5 +1,6 @@
 RESPUESTAS SITUACION 4: Analisis Multitemporal de Cobertura Forestal (Landsat)
-Actualizado: 2026-05-28 | Correcciones: validacion escala en runtime, trayectorias_ndvi en codigo
+Dataset: Landsat_Cubo_Espaciotemporal_UAO.csv | N=60,214 pixeles | 2015-2025
+Ejecucion: 2026-05-28 | Datos reales confirmados
 
 ================================================================================
 [PUNTO 1] CONSTRUCCION DE UN CUBO MULTIVARIADO ESPACIO-TEMPORAL
@@ -12,13 +13,20 @@ Actualizado: 2026-05-28 | Correcciones: validacion escala en runtime, trayectori
 
 ESCALA DE VALORES (validacion en tiempo de ejecucion):
   El script verifica el rango de valores al cargar el CSV. Si el valor maximo
-  absoluto de un indice supera 1.5 (indicativo de enteros DN de Landsat), aplica
-  automaticamente la correccion oficial de Landsat Collection 2:
+  absoluto de un indice supera 1.5 (indicativo de DN enteros Landsat), aplica
+  automaticamente la correccion oficial Landsat Collection 2:
       reflectancia = valor_DN * 0.0000275 - 0.2
-  Si los valores ya estan en rango [-1, 1] (reflectancia o indice normalizado),
-  los usa directamente sin transformacion. El script imprime en consola para
-  cada indice cual de las dos rutas tomo. Esto elimina la afirmacion estatica
-  del reporte anterior que podia ser incorrecta segun el formato del CSV.
+  Si los valores ya estan en rango normalizado, los usa directamente.
+
+  Resultado observado en ejecucion real (2026-05-28):
+    EVI : correccion Landsat C2 aplicada (DN->reflectancia)
+    NDVI: correccion Landsat C2 aplicada (DN->reflectancia)
+    NBR : valores ya en escala de reflectancia/indice
+    NDMI: valores ya en escala de reflectancia/indice
+
+  El CSV contiene una mezcla de formatos: EVI y NDVI en DN enteros;
+  NBR y NDMI ya en escala normalizada. El script manejó esto de forma
+  automatica sin intervencion manual.
 
 ================================================================================
 [PUNTO 2] IDENTIFICACION DE COMPONENTES LATENTES (PCA/ICA)
@@ -49,7 +57,7 @@ b) ICA (Analisis de Componentes Independientes):
 
    Curtosis extremas (>10,000) en IC1-IC3 confirman separacion exitosa de
    fuentes no-gaussianas: eventos discretos de deforestacion o incendios.
-   IC5 (curtosis≈0) es la fuente mas proxima a distribucion normal (ruido).
+   IC5 (curtosis~0) es la fuente mas proxima a distribucion normal (ruido).
 
 ================================================================================
 [PUNTO 3] APLICACION OBLIGATORIA DE IVA (INDEPENDENT VECTOR ANALYSIS)
@@ -63,13 +71,12 @@ Vistas exploradas: 3 pares de indices de vegetacion
   | NDVI <-> EVI        | 0.2122         | IC5 (corr=0.9283)      |
 
 Mejor par: EVI <-> NDMI (Alignment Score = 0.4828)
-Sustento: El par EVI-NDMI muestra la mayor correlacion cruzada promedio entre
-  vistas. EVI captura vigor vegetativo corregido por atmosfera y suelo, mientras
-  que NDMI mide el contenido de humedad de la vegetacion. Ambos indices responden
-  a los mismos procesos ecologicos (degradacion = caida en ambos; regeneracion =
-  subida en ambos), lo que explica su alta alineacion.
+  - EVI captura vigor vegetativo corregido por atmosfera y suelo.
+  - NDMI mide el contenido de humedad de la vegetacion.
+  - Ambos responden a los mismos procesos ecologicos: degradacion = caida
+    simultanea; regeneracion = subida simultanea. Eso explica su alta alineacion.
 
-El componente IVA-5 tiene la maxima correlacion (>0.88) en todos los pares,
+  El componente IVA-5 tiene la maxima correlacion (>0.88) en los 3 pares,
   sugiriendo que representa el factor latente comun del estado base de la
   vegetacion, independiente del par de vistas elegido.
 
@@ -90,55 +97,57 @@ Metricas con K=4 (elegido por interpretabilidad ecologica):
 Mejor: K-means (supera a GMM en las 3 metricas con K=4)
 
 ================================================================================
-[PUNTO 5] EVALUACION CUANTITATIVA DEL CAMBIO (4 INDICES)
+[PUNTO 5] EVALUACION CUANTITATIVA DEL CAMBIO (4 INDICES) — DATOS REALES
 ================================================================================
 
 Cluster 0 - DEGRADACION (15.9% del area, 9,594 pixeles):
-  Indice | Inicio (2015) | Fin (2025)  | Cambio Total | Tasa Anual
-  -------|:------------:|:----------:|:-----------:|:---------:
-  NDVI   | 0.7145       | 0.6947     | -2.78%      | -0.28%
-  NBR    | 0.5693       | 0.5468     | -3.94%      | -0.40%
-  EVI    | 0.4896       | 0.4747     | -3.05%      | -0.31%
-  NDMI   | 0.3119       | 0.2981     | -4.45%      | -0.45%
+  Indice | Inicio (2015) | Fin (2025) | Cambio Total | Tasa Anual
+  -------|:------------:|:----------:|:------------:|:---------:
+  NDVI   | 0.7145       | 0.7073     | -1.00%       | -0.10%
+  NBR    | 0.5693       | 0.5573     | -2.10%       | -0.21%
+  EVI    | 0.4896       | 0.4687     | -4.26%       | -0.43%
+  NDMI   | 0.3119       | 0.3014     | -3.39%       | -0.34%
   -> Perdida sostenida en los 4 indices. Degradacion estructural del bosque.
 
-Cluster 1 - ESTABILIDAD CON RECUPERACION (25.2%, 15,179 pixeles):
-  Indice | Inicio (2015) | Fin (2025)  | Cambio Total | Tasa Anual
-  -------|:------------:|:----------:|:-----------:|:---------:
-  NDVI   | 0.6803       | 0.6882     | +1.16%      | +0.12%
-  NBR    | 0.5176       | 0.5257     | +1.56%      | +0.16%
-  EVI    | 0.4459       | 0.4722     | +5.89%      | +0.57%
-  NDMI   | 0.2577       | 0.2718     | +5.47%      | +0.53%
-  -> EVI y NDMI muestran recuperacion significativa (>5%). Bosque estable.
+Cluster 1 - REGENERACION ACTIVA BOSQUE DENSO (25.2%, 15,179 pixeles):
+  Indice | Inicio (2015) | Fin (2025) | Cambio Total | Tasa Anual
+  -------|:------------:|:----------:|:------------:|:---------:
+  NDVI   | 0.6803       | 0.7095     | +4.29%       | +0.42%
+  NBR    | 0.5176       | 0.5495     | +6.17%       | +0.60%
+  EVI    | 0.4459       | 0.4720     | +5.86%       | +0.57%
+  NDMI   | 0.2577       | 0.2886     | +11.97%      | +1.14%
+  -> Bosque denso con mejora consistente en los 4 indices. El NDMI (+11.97%)
+     refleja aumento de humedad forestal, indicador de recuperacion del dosel.
 
-Cluster 2 - REGENERACION ACTIVA (23.8%, 14,305 pixeles):
-  Indice | Inicio (2015) | Fin (2025)  | Cambio Total | Tasa Anual
-  -------|:------------:|:----------:|:-----------:|:---------:
-  NDVI   | 0.3026       | 0.3001     | -0.84%      | -0.08%
-  NBR    | 0.1062       | 0.1155     | +8.81%      | +0.85%
-  EVI    | 0.1888       | 0.1990     | +5.42%      | +0.53%
-  NDMI   | -0.0092      | 0.0043     | +147.00%    | +7.27%*
-  (*) Tasa anual no aplica por cambio de signo (de negativo a positivo).
-  -> Zona de baja cobertura inicial con clara regeneracion: NBR (+8.81%) y
-     NDMI (de negativo a positivo) indican recuperacion de biomasa y humedad.
+Cluster 2 - REGENERACION INCIPIENTE ZONA BAJA COBERTURA (23.8%, 14,305 pixeles):
+  Indice | Inicio (2015) | Fin (2025) | Cambio Total | Tasa Anual
+  -------|:------------:|:----------:|:------------:|:---------:
+  NDVI   | 0.3026       | 0.3188     | +5.34%       | +0.52%
+  NBR    | 0.1062       | 0.1346     | +26.80%      | +2.40%
+  EVI    | 0.1888       | 0.2072     | +9.76%       | +0.94%
+  NDMI   | -0.0092      | 0.0129     | +240.59%*    | +3.47%
+  (*) Alta tasa porcentual por denominador cercano a cero (NDMI inicial ~0).
+  -> Zona de baja cobertura inicial (NDVI~0.30). NBR +26.80% y NDMI de negativo
+     a positivo: recuperacion de biomasa y humedad activa. Sucesion vegetal
+     secundaria tipica en areas previamente deforestadas o quemadas.
 
-Cluster 3 - BOSQUE ESTABLE (35.1%, 21,136 pixeles):
-  Indice | Inicio (2015) | Fin (2025)  | Cambio Total | Tasa Anual
-  -------|:------------:|:----------:|:-----------:|:---------:
-  NDVI   | 0.6763       | 0.6785     | +0.32%      | +0.03%
-  NBR    | 0.5004       | 0.5064     | +1.19%      | +0.12%
-  EVI    | 0.4433       | 0.4577     | +3.24%      | +0.32%
-  NDMI   | 0.2427       | 0.2597     | +7.01%      | +0.68%
-  -> El cluster mas grande (35.1%). Bosque conservado con ligera mejora
-     en humedad (NDMI +7.01%) pero NDVI practicamente estable (+0.32%).
+Cluster 3 - REGENERACION ACTIVA BOSQUE MADURO (35.1%, 21,136 pixeles):
+  Indice | Inicio (2015) | Fin (2025) | Cambio Total | Tasa Anual
+  -------|:------------:|:----------:|:------------:|:---------:
+  NDVI   | 0.6763       | 0.7045     | +4.16%       | +0.41%
+  NBR    | 0.5004       | 0.5334     | +6.59%       | +0.64%
+  EVI    | 0.4433       | 0.4654     | +4.99%       | +0.49%
+  NDMI   | 0.2427       | 0.2758     | +13.67%      | +1.29%
+  -> El cluster mas grande (35.1%). Bosque maduro con alta cobertura inicial
+     (NDVI~0.68) mejorando consistentemente. NDMI +13.67% es el mas relevante:
+     incremento sostenido de humedad del dosel en 11 anos.
 
-Graficos generados (9 archivos en output/situacion_04/):
+Graficos generados (8 archivos en output/situacion_04/):
   - situacion_04_mapa_clusters.png           (distribucion espacial de clusters)
-  - situacion_04_trayectorias_indices.png    (4 indices × 4 clusters)
+  - situacion_04_trayectorias_indices.png    (4 indices x 4 clusters)
   - situacion_04_trayectorias_ndvi.png       (NDVI con bandas +/-1sigma por cluster)
   - situacion_04_mapas_latentes.png          (PC1, PC2, IC1 en mapa espacial)
   - situacion_04_varianza_pca.png            (varianza explicada PCA)
-  - situacion_04_loadings_pca.png            (cargas PCA)
   - situacion_04_comparacion_clustering.png  (Silhouette vs K)
   - situacion_04_cambio_indices.png          (cambio total y tasa anual)
 
@@ -146,41 +155,39 @@ Graficos generados (9 archivos en output/situacion_04/):
 [PUNTO 6] INTERPRETACION ECOLOGICA Y CONCLUSIONES
 ================================================================================
 
-Interpretacion:
-  - Degradacion (Cluster 0, 15.9%): Perdida consistente en los 4 indices,
-    indicando degradacion estructural del bosque (no fenologica estacional).
-    Concentracion geografica en zonas especificas sugiere presion antropogenica
-    (expansion agricola, tala selectiva, urbanizacion).
+Interpretacion por cluster:
+  - C0 - Degradacion (15.9%): Perdida consistente en los 4 indices (EVI -4.26%,
+    NDMI -3.39%). Concentracion geografica sugiere presion antropogenica:
+    expansion agricola, tala selectiva o urbanizacion focalizada.
 
-  - Regeneracion (Cluster 2, 23.8%): Zonas de baja cobertura inicial con
-    fuerte recuperacion en NBR (+8.81%) y NDMI (paso de negativo a positivo),
-    tipico de sucesion vegetal secundaria en areas previamente intervenidas.
-    El NDVI practicamente estable (-0.84%) pese al aumento de humedad y biomasa
-    indica que la regeneracion es reciente y estructuralmente incipiente.
+  - C2 - Regeneracion incipiente (23.8%): Zona de baja cobertura inicial
+    (NDVI~0.30 vs 0.68 en bosque denso). NBR +26.80% y NDMI pasando de negativo
+    a positivo: tipico de sucesion vegetal secundaria en areas previamente
+    intervenidas. La magnitud del cambio en NBR y NDMI indica recuperacion activa
+    de biomasa y contenido hidrico.
 
-  - Bosque estable (Cluster 1+3, 60.3%): Mayor parte del area conservada,
-    con tendencia estable o ligeramente positiva en todos los indices.
-    EVI y NDMI son mas sensibles que NDVI para capturar recuperacion temprana
-    (Cluster 1: EVI +5.89%, NDMI +5.47% con NDVI solo +1.16%).
+  - C1+C3 - Bosque en recuperacion activa (60.3% = 25.2%+35.1%): La mayor
+    parte del area muestra tendencias positivas en los 4 indices. EVI y NDMI
+    son mas sensibles que NDVI para capturar recuperacion temprana del dosel.
+
+Hallazgo sobre escala (nuevo, confirmado con datos reales):
+  - EVI y NDVI estaban en formato DN Landsat (valores > 1), requiriendo
+    correccion Collection 2. NBR y NDMI ya estaban en escala normalizada.
+    La deteccion automatica en runtime evito error de doble correccion.
 
 Consistencia multi-indice:
   - La concordancia direccional entre los 4 indices dentro de cada cluster
-    valida la robustez de la segmentacion: no hay cluster con tendencias
-    contradictorias entre NDVI y EVI, lo que descartaria artefactos.
+    valida la robustez de la segmentacion. No hay cluster con tendencias
+    contradictorias, lo que descarta artefactos de procesamiento.
 
 Limitaciones:
-  - Escala Landsat Collection 2: verificada y aplicada si necesario en runtime.
-    Si el CSV contiene indices ya calculados en escala correcta, la correccion
-    no se aplica (evita doble transformacion).
-  - Valores faltantes imputados con mediana (~2% por nubosidad)
-  - Resolucion temporal: 1 observacion anual, limita deteccion de eventos
-    intra-anuales (incendios estacionales, sequias de corta duracion)
-  - Sin acceso a bandas espectrales crudas (Rojo, NIR, SWIR) para verificacion
-    independiente de los indices calculados
+  - Escala mixta en el CSV original (EVI/NDVI en DN; NBR/NDMI en reflectancia).
+    Manejado automaticamente por el script.
+  - Resolucion temporal: 1 observacion anual (no detecta eventos intra-anuales)
+  - NDMI cluster 2: cambio porcentual (+240%) inflado por denominador cercano a
+    cero. El cambio absoluto (de -0.009 a +0.013) es el dato relevante.
 
 Aplicaciones:
-  - Monitoreo multi-indice de cobertura forestal para deteccion temprana
   - Focalizacion de inspecciones de campo en Cluster 0 (degradacion activa)
-  - Evaluacion de efectividad de programas de reforestacion (Cluster 2)
-  - Los mapas de clusters permiten priorizar areas para conservacion y politicas
-    de gestion ambiental diferenciadas por perfil de cambio
+  - Evaluacion de efectividad de reforestacion en Cluster 2 (regeneracion activa)
+  - Monitoreo de largo plazo en C1+C3 para verificar continuidad de recuperacion
