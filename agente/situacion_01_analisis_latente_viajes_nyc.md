@@ -284,36 +284,49 @@ def extract_latent_components(X, n_components=3):
     }
     print('ICA: Completo')
 
-    # 5. IVA - Independent Vector Analysis (aproximación multivista)
-    # Simulamos 2 vistas dividiendo las características
+    # 5. IVA - Independent Vector Analysis (multivista semántica)
+    # Vista 1 (espacio-temporal): trip_distance, duration_minutes  → X[:, 0:2]
+    # Vista 2 (económica/demanda): fare_amount, passenger_count    → X[:, 2:4]
     n_features = X.shape[1]
     mid = n_features // 2
-    X_view1 = X[:, :mid]
-    X_view2 = X[:, mid:]
+    X_view1 = X[:, :mid]   # distancia y duración del viaje
+    X_view2 = X[:, mid:]   # tarifa y número de pasajeros
 
-    ica_v1 = FastICA(n_components=min(n_components, mid),
+    n_comp_v1 = min(n_components, mid)
+    n_comp_v2 = min(n_components, n_features - mid)
+    n_align   = min(n_comp_v1, n_comp_v2)
+
+    ica_v1 = FastICA(n_components=n_comp_v1,
                      whiten='unit-variance', random_state=RANDOM_STATE)
-    ica_v2 = FastICA(n_components=min(n_components, n_features - mid),
+    ica_v2 = FastICA(n_components=n_comp_v2,
                      whiten='unit-variance', random_state=RANDOM_STATE)
 
     S1 = ica_v1.fit_transform(X_view1)
     S2 = ica_v2.fit_transform(X_view2)
 
-    # Alineación por correlación entre vistas
-    corr_matrix = np.abs(np.corrcoef(S1.T, S2.T)[:n_components, n_components:])
-    alignment = np.argmax(corr_matrix, axis=1)
+    # Alineación por correlación cruzada entre vistas
+    corr_matrix = np.abs(np.corrcoef(S1.T, S2.T)[:n_align, n_align:])
+    alignment   = np.argmax(corr_matrix, axis=1) if corr_matrix.size > 0 else np.arange(n_align)
+
+    # Scores combinados: promedio de componentes alineadas de ambas vistas
+    X_iva_combined = np.zeros((S1.shape[0], n_align))
+    for i in range(n_align):
+        X_iva_combined[:, i] = (S1[:, i] + S2[:, alignment[i]]) / 2.0
+    alignment_score = float(np.mean([corr_matrix[i, alignment[i]] for i in range(n_align)]))
 
     results['iva'] = {
-        'scores_v1': S1,
-        'scores_v2': S2,
+        'scores':        X_iva_combined,   # scores combinados (principal para análisis)
+        'scores_v1':     S1,
+        'scores_v2':     S2,
         'components_v1': ica_v1.components_,
         'components_v2': ica_v2.components_,
-        'alignment': alignment,
+        'alignment':     alignment,
+        'alignment_score': alignment_score,
         'cross_correlation': corr_matrix,
-        'model_v1': ica_v1,
-        'model_v2': ica_v2
+        'model_v1':      ica_v1,
+        'model_v2':      ica_v2
     }
-    print('IVA (multivista): Completo')
+    print(f'IVA (multivista): AlignScore={alignment_score:.4f}')
 
     return results
 
@@ -584,7 +597,9 @@ def plot_method_comparison(results_df):
 ```python
 def main():
     # Configuración
-    data_dir = r'C:\Users\Jorge\Documents\01.MAESTRIA_IA\02_SEMESTRE_02-2026\03_ANALISIS_MULTIVARIADO\03_DESAFIO_03\data\data_situacion_01'
+    data_dir = os.path.normpath(
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'data', 'data_situacion_01')
+    )
 
     print('=' * 60)
     print('SITUACIÓN 1: Estructuras Latentes en Viajes NYC')
@@ -650,10 +665,8 @@ def main():
     clustering_results = {}
 
     for method_name, res in latent_results.items():
-        if method_name == 'iva':
-            scores = res['scores_v1']
-        else:
-            scores = res['scores']
+        # IVA y todos los demás métodos exponen clave 'scores' (combinados para IVA)
+        scores = res['scores']
 
         # Determinar K óptimo
         opt = optimal_n_clusters(scores, max_k=8)
@@ -679,11 +692,8 @@ def main():
     predictive_results = {}
 
     for method_name, res in latent_results.items():
-        if method_name == 'iva':
-            scores = res['scores_v1']
-        else:
-            scores = res['scores']
-
+        # IVA usa scores combinados de ambas vistas; Kernel PCA usa su submuestra propia
+        scores = res['scores']
         pred = predictive_validity(scores, df_sample)
         predictive_results[method_name] = pred
 
@@ -804,14 +814,22 @@ uv run python situacion_01.py
 - Se aplica muestreo estratificado por servicio (`SAMPLE_SIZE=100,000`).
 - Para análisis completo sin muestreo, usar lectura perezosa con `pq.ParquetFile` y procesamiento por lotes.
 
-### 5.3 IVA - Implementación
+### 5.3 IVA - Implementación (vistas semánticas)
 
-Dado que IVA no está disponible en scikit-learn, se implementa una aproximación:
-1. Dividir las características en dos vistas complementarias.
+Dado que IVA no está disponible en scikit-learn, se implementa via FastICA multivista:
+
+1. **Definición semántica de vistas** (no partición arbitraria de features):
+   - Vista 1 (espacio-temporal): `trip_distance`, `duration_minutes` → geometría del viaje.
+   - Vista 2 (económica/demanda): `fare_amount`, `passenger_count` → valor y ocupación.
 2. Aplicar FastICA independientemente en cada vista.
-3. Alinear componentes por máxima correlación cruzada.
+3. Alinear componentes de Vista 2 hacia Vista 1 por máxima correlación cruzada.
+4. Calcular **scores combinados** como promedio de los pares alineados.
+5. Reportar el **Alignment Score** (correlación cruzada media) como indicador de cuánto comparten ambas vistas.
 
-Para una implementación rigurosa de IVA, se recomienda:
+Esta implementación produce scores combinados que integran la información de
+ambos dominios operacionales, siendo más representativa que usar solo una vista.
+
+Para una implementación rigurosa de IVA con convergencia garantizada, se recomienda:
 - **Python:** `iva` package (`pip install iva`) o `groupica`.
 - **Matlab:** Toolbox `IVA` del grupo de Tülay Adalı (UMBC).
 - **R:** `iva` package en CRAN.

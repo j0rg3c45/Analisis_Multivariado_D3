@@ -293,6 +293,8 @@ def extract_latent_components(X, n_components=3):
         'model': kpca
     }
     print(f'Kernel PCA (RBF) en muestra de {kpca_sample_size}: Completo')
+    print(f'  [NOTA] Kernel PCA usa submuestra de {kpca_sample_size} registros (O(N³)). '
+          f'Sus métricas no son directamente comparables con los demás métodos.')
 
     # 4. ICA (FastICA)
     ica = FastICA(n_components=n_components, whiten='unit-variance',
@@ -306,33 +308,51 @@ def extract_latent_components(X, n_components=3):
     }
     print('ICA: Completo')
 
-    # 5. IVA - Independent Vector Analysis (aproximación multivista)
+    # 5. IVA - Independent Vector Analysis (multivista semántica)
+    # Asume features = [trip_distance, duration_minutes, fare_amount, passenger_count]
+    # Vista 1 (espacio-temporal): trip_distance, duration_minutes  → X[:, 0:2]
+    # Vista 2 (económica/demanda): fare_amount, passenger_count    → X[:, 2:4]
     n_features = X.shape[1]
     mid = n_features // 2
-    X_view1 = X[:, :mid]
-    X_view2 = X[:, mid:]
+    X_view1 = X[:, :mid]   # distancia y duración del viaje
+    X_view2 = X[:, mid:]   # tarifa y número de pasajeros
 
-    ica_v1 = FastICA(n_components=min(n_components, mid),
+    n_comp_v1 = min(n_components, mid)
+    n_comp_v2 = min(n_components, n_features - mid)
+    n_align   = min(n_comp_v1, n_comp_v2)
+
+    ica_v1 = FastICA(n_components=n_comp_v1,
                      whiten='unit-variance', random_state=RANDOM_STATE)
-    ica_v2 = FastICA(n_components=min(n_components, n_features - mid),
+    ica_v2 = FastICA(n_components=n_comp_v2,
                      whiten='unit-variance', random_state=RANDOM_STATE)
 
     S1 = ica_v1.fit_transform(X_view1)
     S2 = ica_v2.fit_transform(X_view2)
 
-    # Alineación por correlación entre vistas
-    corr_matrix = np.abs(np.corrcoef(S1.T, S2.T)[:S1.shape[1], S1.shape[1]:])
-    alignment = np.argmax(corr_matrix, axis=1) if corr_matrix.size > 0 else []
+    # Alineación por correlación cruzada entre vistas
+    corr_matrix = np.abs(np.corrcoef(S1.T, S2.T)[:n_align, n_align:])
+    alignment   = np.argmax(corr_matrix, axis=1) if corr_matrix.size > 0 else np.arange(n_align)
+
+    # Scores combinados: promedio de componentes alineadas de ambas vistas
+    X_iva_combined = np.zeros((S1.shape[0], n_align))
+    for i in range(n_align):
+        X_iva_combined[:, i] = (S1[:, i] + S2[:, alignment[i]]) / 2.0
+
+    alignment_score = float(np.mean([corr_matrix[i, alignment[i]] for i in range(n_align)]))
+    print(f'IVA (multivista): Vista1=[distancia,duración] <-> Vista2=[tarifa,pasajeros]')
+    print(f'  Alignment Score: {alignment_score:.4f}')
 
     results['iva'] = {
-        'scores_v1': S1,
-        'scores_v2': S2,
+        'scores':        X_iva_combined,   # scores combinados (principal para análisis)
+        'scores_v1':     S1,
+        'scores_v2':     S2,
         'components_v1': ica_v1.components_,
         'components_v2': ica_v2.components_,
-        'alignment': alignment,
+        'alignment':     alignment,
+        'alignment_score': alignment_score,
         'cross_correlation': corr_matrix,
-        'model_v1': ica_v1,
-        'model_v2': ica_v2
+        'model_v1':      ica_v1,
+        'model_v2':      ica_v2
     }
     print('IVA (multivista): Completo')
 
@@ -501,9 +521,60 @@ def predictive_validity(X_latent, df):
 
 # --- Visualization ---
 
+def plot_efa_results(efa_results, feature_names, out_dir='output/situacion_01/'):
+    """Genera heatmap de cargas EFA y gráfico de comunalidades."""
+    os.makedirs(out_dir, exist_ok=True)
+    loadings = efa_results['loadings']   # (n_features, n_factors)
+    n_factors = loadings.shape[1]
+
+    fig, axes = plt.subplots(1, 2, figsize=(14, 5))
+
+    sns.heatmap(loadings, annot=True, cmap='RdBu_r', center=0, fmt='.3f',
+                xticklabels=[f'F{i+1}' for i in range(n_factors)],
+                yticklabels=feature_names, ax=axes[0])
+    axes[0].set_title('EFA — Cargas Factoriales (Rotación Varimax)')
+
+    communalities = efa_results['communalities']
+    axes[1].barh(feature_names, communalities, color='steelblue', edgecolor='black', alpha=0.7)
+    axes[1].axvline(x=0.5, color='red', linestyle='--', alpha=0.5, label='h²=0.5')
+    axes[1].set_xlabel('Comunalidad (h²)')
+    axes[1].set_title('EFA — Comunalidades por Variable')
+    axes[1].legend()
+    axes[1].set_xlim(0, 1)
+
+    plt.tight_layout()
+    plt.savefig(f'{out_dir}situacion_01_efa_loadings.png')
+    plt.close()
+    print('EFA: gráfico de cargas y comunalidades guardado.')
+
+
+def plot_elbow_silhouette(opt_results_by_method, out_dir='output/situacion_01/'):
+    """Curvas de codo e índice Silhouette para selección de K."""
+    os.makedirs(out_dir, exist_ok=True)
+    methods_to_plot = [m for m in ['pca', 'ica', 'iva'] if m in opt_results_by_method]
+    if not methods_to_plot:
+        return
+    fig, ax = plt.subplots(figsize=(10, 5))
+    for m in methods_to_plot:
+        res = opt_results_by_method[m]
+        ax.plot(res['k_range'], res['silhouette_scores'], 'o-',
+                label=m.upper(), linewidth=2, markersize=6)
+        ax.axvline(x=res['optimal_k'], linestyle=':', alpha=0.4)
+    ax.set_xlabel('Número de Clústeres (K)')
+    ax.set_ylabel('Índice Silhouette')
+    ax.set_title('Selección de K — Comparativa de Métodos')
+    ax.legend()
+    ax.grid(True, alpha=0.3)
+    plt.tight_layout()
+    plt.savefig(f'{out_dir}situacion_01_seleccion_k.png')
+    plt.close()
+    print('Curva de selección de K guardada.')
+
+
 def plot_all_results(latent_results, clustering_results, features, comparison):
     """Genera y guarda gráficos clave."""
     out_dir = 'output/situacion_01/'
+    os.makedirs(out_dir, exist_ok=True)
     # 1. Varianza PCA
     pca_res = latent_results['pca']
     evr = pca_res['explained_variance_ratio']
@@ -545,7 +616,9 @@ def plot_all_results(latent_results, clustering_results, features, comparison):
 # --- Main ---
 
 def main():
-    data_dir = r'C:\Users\Jorge\Documents\01.MAESTRIA_IA\02_SEMESTRE_02-2026\03_ANALISIS_MULTIVARIADO\03_DESAFIO_03\data\data_situacion_01'
+    data_dir = os.path.normpath(
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'data', 'data_situacion_01')
+    )
 
     print('=' * 60)
     print('SITUACIÓN 1: Estructuras Latentes en Viajes NYC')
@@ -560,7 +633,11 @@ def main():
     # 3. Preparación
     features = ['trip_distance', 'duration_minutes', 'fare_amount', 'passenger_count']
     df_model = df_all.dropna(subset=features).copy()
+    fhv_excluded = (df_all['service_type'] == 'fhv').sum()
     print(f'Registros con datos completos: {len(df_model):,}')
+    if fhv_excluded > 0:
+        print(f'  [NOTA] {fhv_excluded:,} registros FHV excluidos del análisis latente '
+              f'(trip_distance y fare_amount no disponibles en ese servicio).')
 
     if len(df_model) > SAMPLE_SIZE:
         df_sample = df_model.sample(SAMPLE_SIZE, random_state=RANDOM_STATE)
@@ -576,7 +653,17 @@ def main():
     # --- [REQUISITO 1: EXTRACCIÓN DE COMPONENTES LATENTES] ---
     # Este bloque aborda la Interpretación y Parsimonia (Criterio 1)
     latent_results = extract_latent_components(X, n_components=3)
-    
+
+    # EFA (Análisis Factorial Exploratorio) - complementario a los métodos anteriores
+    print('\n--- EFA (Análisis Factorial Exploratorio) ---')
+    efa_results = exploratory_factor_analysis(X, n_factors=3, rotation='varimax')
+    print('Varianza por factor:')
+    for i, v in enumerate(efa_results['prop_variance']):
+        print(f'  F{i+1}: {v:.3f} ({v*100:.1f}%)')
+    print('Comunalidades:')
+    for fname, h2 in zip(features, efa_results['communalities']):
+        print(f'  {fname}: {h2:.3f}')
+
     # 6. Interpretación de Componentes (Criterio: Interpretatibilidad y Parsimonia)
     # Se identifican constructos como "Eficiencia/Costo" y "Escala del Viaje"
     interpretations = interpret_components(latent_results, features)
@@ -588,15 +675,13 @@ def main():
     # 7. Clustering (Criterio 2: Coherencia de Segmentación)
     # Se evalúa la utilidad operativa de los clústeres identificados
     clustering_results = {}
+    opt_results_by_method = {}
     for method_name, res in latent_results.items():
-        if method_name == 'iva':
-            scores = res['scores_v1']
-        elif method_name == 'kernel_pca':
-            scores = res['scores']
-        else:
-            scores = res['scores']
+        # IVA y los demás tienen clave 'scores'; kernel_pca también la tiene
+        scores = res['scores']
 
         opt = optimal_n_clusters(scores, max_k=6)
+        opt_results_by_method[method_name] = opt
         clust = cluster_analysis(scores, n_clusters=opt['optimal_k'])
         clustering_results[method_name] = {
             'labels': clust['labels'],
@@ -609,15 +694,13 @@ def main():
     # Evaluación sobre: 1. Probabilidad propina, 2. Pasajeros, 3. Monto propina
     predictive_results = {}
     for method_name, res in latent_results.items():
-        if method_name == 'kernel_pca': 
-            # Necesitamos alinear df_sample con los índices de Kernel PCA
+        if method_name == 'kernel_pca':
+            # KPCA opera sobre submuestra propia; df_sub alinea los targets
             scores = res['scores']
             df_sub = df_sample.iloc[res['indices']]
             pred = predictive_validity(scores, df_sub)
-        elif method_name == 'iva':
-            scores = res['scores_v1']
-            pred = predictive_validity(scores, df_sample)
         else:
+            # IVA y demás: scores combinados alineados con df_sample
             scores = res['scores']
             pred = predictive_validity(scores, df_sample)
             
@@ -635,8 +718,10 @@ def main():
     print('\nResumen Comparativo:')
     print(comparison)
 
-    # Visualización
+    # Visualizaciones
     plot_all_results(latent_results, clustering_results, features, comparison)
+    plot_efa_results(efa_results, features)
+    plot_elbow_silhouette(opt_results_by_method)
     print('\nGráficos guardados.')
 
 if __name__ == '__main__':

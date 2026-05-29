@@ -39,11 +39,25 @@ def load_and_prepare_data(file_path):
     index_data = {}
     for idx in indices:
         cols = sorted([c for c in df.columns if idx in c and c != '.geo' and c != 'system:index'])
+        raw_values = df[cols].values.astype(float)
+
+        # Validación de escala Landsat Collection 2:
+        # DN enteros (>1) requieren: reflectancia = DN * 0.0000275 - 0.2
+        # Índices ya en escala decimal (-1 a 1) no requieren corrección.
+        val_max = float(np.nanmax(np.abs(raw_values)))
+        if val_max > 1.5:
+            corrected = raw_values * 0.0000275 - 0.2
+            scale_note = f'corrección Landsat C2 aplicada (DN→reflectancia)'
+        else:
+            corrected = raw_values
+            scale_note = 'valores ya en escala de reflectancia/índice'
+
         index_data[idx] = {
             'cols': cols,
-            'values': df[cols].values
+            'values': corrected,
+            'scale_note': scale_note
         }
-        print(f'  {idx.upper()}: {len(cols)} anos detectados')
+        print(f'  {idx.upper()}: {len(cols)} anos detectados | {scale_note}')
 
     years = [2015 + i for i in range(len(index_data['ndvi']['cols']))]
     print(f'Periodo: {years[0]}-{years[-1]} ({len(years)} anos)')
@@ -150,8 +164,9 @@ def main():
     df, index_data, years = load_and_prepare_data(file_path)
 
     print('\n[PUNTO 1] CUBO MULTIVARIADO ESPACIO-TEMPORAL')
-    print(f'  Dimensiones: {len(df)} pixeles x 44 variables (4 indices x 11 anos)')
-    print(f'  Indices: NDVI, NBR, EVI, NDMI (con correccion de escala Landsat Coleccion 2)')
+    print(f'  Dimensiones: {len(df)} pixeles x {len(years)*4} variables (4 indices x {len(years)} anos)')
+    scale_notes = set(v['scale_note'] for v in index_data.values())
+    print(f'  Escala de indices: {"; ".join(scale_notes)}')
 
     X_scaled = impute_and_scale(index_data)
 
@@ -250,6 +265,8 @@ def main():
             print(f'  {idx_name.upper()}: {start_v:.4f} -> {end_v:.4f} | Cambio={change_pct:+.2f}% | Tasa anual={annual_rate:+.2f}%')
 
     # --- VISUALIZACIONES ---
+    import os
+    os.makedirs(OUT_DIR, exist_ok=True)
     print('\n[Generando visualizaciones...]')
 
     # 1. Mapa de clusters
@@ -339,7 +356,32 @@ def main():
     plt.close()
     print('  Comparacion clustering OK')
 
-    # 6. Resumen de cambio por cluster (barplot comparativo)
+    # 6. Trayectorias NDVI detalladas con bandas de desviación estándar
+    fig, ax = plt.subplots(figsize=(14, 7))
+    for c in range(optimal_k):
+        mask = df['cluster'] == c
+        cols_ndvi = index_data['ndvi']['cols']
+        vals = df[mask][cols_ndvi].values
+        means = np.nanmean(vals, axis=0)
+        stds  = np.nanstd(vals,  axis=0)
+        change = cluster_stats[c]['indices']['ndvi']['change_pct']
+        annual = cluster_stats[c]['indices']['ndvi']['annual_rate']
+        label  = f'C{c} — cambio total {change:+.2f}% ({annual:+.2f}%/año)'
+        ax.plot(years, means, 'o-', color=colors_cluster[c],
+                label=label, linewidth=2.5, markersize=7)
+        ax.fill_between(years, means - stds, means + stds,
+                        color=colors_cluster[c], alpha=0.12)
+    ax.set_xlabel('Año')
+    ax.set_ylabel('NDVI (media por clúster)')
+    ax.set_title('Trayectorias Temporales NDVI por Clúster (con bandas ±1σ)')
+    ax.legend(fontsize=9)
+    ax.grid(True, alpha=0.3)
+    plt.tight_layout()
+    plt.savefig(f'{OUT_DIR}situacion_04_trayectorias_ndvi.png', dpi=150, bbox_inches='tight')
+    plt.close()
+    print('  Trayectorias NDVI OK')
+
+    # 7. Resumen de cambio por cluster (barplot comparativo)
     fig, axes = plt.subplots(1, 2, figsize=(14, 6))
     changes = {idx: [cluster_stats[c]['indices'][idx]['change_pct'] for c in range(optimal_k)]
                for idx in indices_names}
