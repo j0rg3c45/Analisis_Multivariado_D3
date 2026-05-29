@@ -14,6 +14,8 @@ Maestría en Analítica de Big Data — Análisis Multivariado Avanzado
 
 **Cali, Colombia — Mayo de 2026**
 
+**Repositorio:** <https://github.com/j0rg3c45/Analisis_Multivariado_D3>
+
 ---
 
 <div style="page-break-after: always;"></div>
@@ -264,119 +266,9 @@ PCA captura el 90% de la varianza original con solo 3 componentes.
 
 ## Situación 2: Análisis de Préstamos Hipotecarios (Freddie Mac)
 
-El conjunto de datos *Single-Family Fixed-Rate Loan Performance Data* (Freddie Mac) ofrece una
-visión longitudinal del desempeño de préstamos hipotecarios en Estados Unidos. La alta
-dimensionalidad e interdependencia temporal de las variables presentan un desafío para identificar
-patrones subyacentes de riesgo crediticio más allá de los indicadores tradicionales de morosidad.
-
----
-
-### Fase 1 — Construcción del Panel Analítico
-
-La metodología integra las tablas de originación y desempeño mensual en un panel longitudinal
-coherente, permitiendo observar tanto el estado inicial del crédito (Credit Score, LTV, plazo)
-como su evolución temporal (Delinquency Status, prepago, amortización) para cada préstamo.
-
-### Fase 2 — Extracción de Componentes Latentes con IVA
-
-Se aplica Independent Vector Analysis (IVA) con tres vistas que capturan los dominios
-fundamentales del portafolio hipotecario:
-
-| Vista | Variables principales |
-|-------|-----------------------|
-| Vista Préstamo | Monto, tasa, plazo |
-| Vista Prestatario | Score crediticio, ingresos, ratio deuda-ingreso (DTI) |
-| Vista Desempeño | Historial de pagos y amortización |
-
-IVA extrae fuentes comunes que explican el riesgo de manera más compacta que los indicadores
-individuales, capturando la dependencia entre dominios.
-
-### Fase 3 — Evaluación e Interpretación de Componentes
-
-Los componentes latentes se contrastan con indicadores tradicionales de riesgo crediticio.
-Se espera identificar factores como *"Propensión al Prepago"* o *"Sensibilidad a Tasas"*,
-ocultos en los indicadores de morosidad pero críticos para el *pricing* de cartera.
-
-### Fase 4 — Segmentación Basada en Características Latentes
-
-Aplicando GMM o K-means sobre los *scores* de IVA, se identifican grupos homogéneos:
-
-- Perfil de bajo riesgo / estable.
-- Prestatarios sensibles a ciclos económicos.
-- Créditos con alta probabilidad de prepago.
-
-### Fase 5 — Caracterización de Perfiles de Riesgo
-
-La segmentación habilita una gestión proactiva del portafolio:
-
-- Monitoreo intensivo de clústeres de alto riesgo antes del incumplimiento.
-- Optimización de reservas de capital basadas en la estructura latente.
-- Ajuste de políticas de originación para evitar concentración en clústeres con trayectorias
-  negativas detectadas por IVA.
-
-> **Conclusión:** La integración de IVA y Clustering ofrece una visión multidimensional del
-> riesgo crediticio que supera el análisis univariado tradicional, habilitando una gestión de
-> cartera más precisa y proactiva orientada a la identificación temprana de patrones de
-> incumplimiento.
-
 <div style="page-break-after: always;"></div>
 
 ## Situación 3: Aislamiento de Firma de Estrés en Voz (SUSAS)
-
-El dataset SUSAS (*Speech Under Simulated and Actual Stress*) provee grabaciones de voz bajo
-múltiples condiciones de estrés. Se plantea un desafío en dos fases para evaluar la capacidad
-de ICA e IVA de aislar y caracterizar la "firma del estrés" como componente independiente.
-
----
-
-### Fase 1 — Aplicación de ICA (Separación de Fuentes)
-
-Se simulan dos canales de grabación mediante mezcla lineal artificial de dos fuentes:
-
-- **S1:** grabación Neutra (interrogador — calmado)
-- **S2:** grabación Estresada (sujeto — *High Task Load* o *Lombard Effect*)
-
-Las mezclas observadas se construyen como:
-
-```
-M1 = 0.7 · S1 + 0.3 · S2
-M2 = 0.4 · S1 + 0.6 · S2
-```
-
-Aplicando **FastICA** sobre M1 y M2, es posible recuperar las fuentes originales con alta
-fidelidad cuando éstas son estadísticamente independientes. La calidad de separación se evalúa
-mediante el *Signal-to-Interference Ratio* (SIR): en condiciones ideales de mezcla lineal sin
-ruido, ICA logra una separación casi perfecta, permitiendo identificar la señal estresada S2
-sin interferencia de S1.
-
----
-
-### Fase 2 — Aislamiento de la Firma de Estrés con IVA
-
-IVA es superior a ICA en este escenario porque trata cada condición de estrés como una "vista"
-relacionada del mismo proceso subyacente:
-
-| Vista | Grabación |
-|-------|-----------|
-| D1 | Neutra |
-| D2 | Estresada — Tarea Baja |
-| D3 | Estresada — Tarea Alta |
-
-La estructura multivista de IVA descompone las señales en:
-
-- **Componente Común** (presente en D1, D2, D3): captura la *identidad vocal* del hablante
-  (formantes, timbre base).
-- **Componente Diferencial** (modulado en D2 y D3, ausente en D1): captura la *"firma del estrés"*
-  — variaciones en tono (*pitch*), ritmo e intensidad consistentes bajo condiciones de carga.
-
-A diferencia de un ICA individual (que separaría ruidos locales sin conexión entre vistas),
-IVA alinea los componentes a través de D1, D2 y D3, aislando un vector fuente que representa
-la modulación fisiológica inducida por el estrés, independiente de la palabra dicha o de la
-identidad del hablante.
-
-> **Conclusión:** IVA es la técnica óptima para extraer biomarcadores de estrés consistentes
-> a través de múltiples muestras de voz del mismo individuo, separando la identidad vocal
-> (componente estable) de la firma del estrés (componente variable y condicionado).
 
 <div style="page-break-after: always;"></div>
 
