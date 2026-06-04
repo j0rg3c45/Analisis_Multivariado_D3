@@ -68,6 +68,10 @@ Maestría en Analítica de Big Data — Análisis Multivariado Avanzado
    5. [Evaluación Comparativa y Clustering](#15-evaluación-comparativa-y-clustering)
    6. [Modelo Final Recomendado](#16-modelo-final-recomendado)
 3. [Situación 3: Aislamiento de Firma de Estrés en Voz (SUSAS)](#situación-3-aislamiento-de-firma-de-estrés-en-voz-susas)
+   1. [Dataset y Síntesis de Señales](#31-dataset-y-síntesis-de-señales)
+   2. [Fase 1: Separación ICA — Escenario Sala de Interrogatorios](#32-fase-1-separación-ica--escenario-sala-de-interrogatorios)
+   3. [Fase 2: IVA Multi-Vista — Aislamiento de Firma de Estrés](#33-fase-2-iva-multi-vista--aislamiento-de-firma-de-estrés)
+   4. [Comparativa ICA vs IVA e Interpretación](#34-comparativa-ica-vs-iva-e-interpretación)
 4. [Situación 4: Análisis Multitemporal de Cobertura Forestal (Landsat)](#situación-4-análisis-multitemporal-de-cobertura-forestal-landsat)
    1. [Construcción del Cubo Multivariado Espacio-Temporal](#41-construcción-del-cubo-multivariado-espacio-temporal)
    2. [Identificación de Componentes Latentes (PCA / ICA)](#42-identificación-de-componentes-latentes-pca--ica)
@@ -77,6 +81,7 @@ Maestría en Analítica de Big Data — Análisis Multivariado Avanzado
    6. [Interpretación Ecológica y Conclusiones](#46-interpretación-ecológica-y-conclusiones)
 - [Apéndice A: Código Python — Situación 1](#apéndice-a-código-python--situación-1)
 - [Apéndice B: Código Python — Situación 4](#apéndice-b-código-python--situación-4)
+- [Apéndice C: Código Python — Situación 3](#apéndice-c-código-python--situación-3)
 
 <div style="page-break-after: always;"></div>
 """
@@ -291,8 +296,176 @@ def s2():
     return ''
 
 def s3():
-    return """\
+    f1w = img('situacion_03_fase1_formas_onda.png',    'situacion_03', 'Fase 1 — Formas de onda: fuentes S₁/S₂, mezclas M₁/M₂ y componentes recuperados C₁/C₂')
+    f1s = img('situacion_03_fase1_psd_sir.png',        'situacion_03', 'Fase 1 — Análisis espectral (PSD 0–600 Hz) y Signal-to-Interference Ratio (SIR)')
+    f2c = img('situacion_03_fase2_componentes_iva.png','situacion_03', 'Fase 2 — Vistas multi-condición D₁/D₂/D₃ y componentes IVA recuperados IC1/IC2/IC3')
+    f2h = img('situacion_03_fase2_heatmap_zcr.png',    'situacion_03', 'Fase 2 — Mapa de correlaciones IVA y perfil ZCR por condición')
+    return f"""\
 ## Situación 3: Aislamiento de Firma de Estrés en Voz (SUSAS)
+
+Se desarrolla un análisis de separación de fuentes de voz bajo diferentes condiciones de estrés
+fisiológico, replicando las condiciones del corpus **SUSAS (Speech Under Simulated and Actual
+Stress, LDC99S78)**. El análisis opera en dos fases complementarias: ICA para separación de
+fuentes en un escenario de mezcla lineal (Fase 1), e IVA multi-vista para aislar la *firma
+de estrés* de la *identidad vocal* a través de tres condiciones simultáneas (Fase 2).
+
+---
+
+### 3.1 Dataset y Síntesis de Señales
+
+El corpus SUSAS registra voz de 32 hablantes bajo condiciones documentadas de estrés acústico
+y cognitivo. Dado que el acceso al corpus requiere licencia LDC, las señales se sintetizan con
+los parámetros fisiológicos publicados de SUSAS: suma de armónicos (F₀, 2F₀, 3F₀, 4F₀),
+modulación de envolvente y tremor laríngeo.
+
+**Parámetros de síntesis:**
+
+| Condición SUSAS | F₀ | Tremor (Hz / Amp) | Jitter | Ruido | Envolvente |
+|----------------|:--:|:-----------------:|:------:|:-----:|:----------:|
+| Neutral | 120 Hz | 0.5 Hz / Amp=2 | Nulo | 1% | mod=0.25, f=3.0 Hz |
+| cond50 (50% carga cognitiva) | 138 Hz (+15%) | 3.0 Hz / Amp=6 | Bajo | 2.5% | mod=0.33, f=4.0 Hz |
+| cond70 / Lombard (85 dB SPL) | 162 Hz (+35%) | 5.0 Hz / Amp=10 | Alto (200 pts) | 5% | mod=0.42, f=5.5 Hz |
+
+**Configuración de simulación:** SR = 8,000 Hz (igual que SUSAS) · Duración = 2.0 s ·
+16,000 muestras · Semilla aleatoria = 42
+
+| Señal | F₀ | RMS |
+|-------|----|-----|
+| S₁ (neutro) | 120 Hz | 0.4344 |
+| S₂ (estrés cond70) | 162 Hz | 0.3141 |
+| D₂ (cond50) | 138 Hz | 0.3986 |
+
+---
+
+### 3.2 Fase 1: Separación ICA — Escenario Sala de Interrogatorios
+
+**Escenario:** Dos micrófonos capturan mezclas lineales de S₁ (voz neutra) y S₂ (voz
+estresada cond70/Lombard):
+
+| Micrófono | Mezcla |
+|-----------|--------|
+| M₁ | 0.7 · S₁ + 0.3 · S₂ |
+| M₂ | 0.4 · S₁ + 0.6 · S₂ |
+
+**Método:** FastICA (algoritmo deflation, whiten='unit-variance', max_iter=1000, tol=1e-5,
+seed=42).
+
+**Tabla 1 — Correlaciones |r| entre componentes ICA y fuentes originales:**
+
+| | S₁ neutro | S₂ estrés |
+|---|:---------:|:---------:|
+| C₁ | **1.0000** | 0.0026 |
+| C₂ | 0.0032 | **1.0000** |
+
+**Métricas de separación:**
+
+| Componente | SIR (dB) | Interpretación |
+|------------|:--------:|----------------|
+| C₁ (neutro) | **49.83 dB** | Separación perfecta — supera umbral práctico (20 dB) |
+| C₂ (estrés) | **51.62 dB** | Separación perfecta — resolución ≈ 50 dB |
+
+> **Interpretación:** FastICA recupera perfectamente ambas fuentes (|r|=1.0000, SIR≈50 dB).
+> El algoritmo aprovecha la **no-gaussianidad diferencial** entre las señales: S₁ (voz neutra,
+> kurtosis más baja) y S₂ (voz estresada con tremor intenso y jitter, kurtosis alta).
+> La gran diferencia en F₀ (120 vs 162 Hz) y la presencia de perturbaciones discretas (jitter)
+> en S₂ maximizan la separabilidad estadística de las fuentes.
+
+{f1w}
+
+*Fase 1 — Formas de onda: fuentes originales, mezclas de micrófono y componentes ICA recuperados*
+
+{f1s}
+
+*Fase 1 — PSD comparativa (armónicos F₀ neutro 120 Hz vs estrés 162 Hz) y SIR por componente*
+
+---
+
+### 3.3 Fase 2: IVA Multi-Vista — Aislamiento de Firma de Estrés
+
+**Escenario:** Mismo hablante, misma palabra, tres condiciones de estrés como vistas
+independientes. El objetivo es separar la **identidad vocal** (invariante al estrés) de la
+**modulación fisiológica** (dependiente del nivel de estrés).
+
+| Vista | Condición SUSAS | F₀ | Tremor |
+|-------|----------------|:--:|:------:|
+| D₁ | Neutral | 120 Hz | mínimo |
+| D₂ | cond50 (50% carga cognitiva) | 138 Hz | moderado |
+| D₃ | cond70 / Lombard (85 dB SPL) | 162 Hz | alto + jitter |
+
+**Método IVA aproximado:** blanqueo z-score individual por vista + FastICA sobre la matriz
+aumentada [D₁|D₂|D₃] (n_components=3, deflation, max_iter=2000, tol=1e-6, seed=42).
+
+**Tabla 2 — Correlaciones |r| entre componentes IVA y vistas originales:**
+
+| Componente | r(D₁ neutro) | r(D₂ bajo) | r(D₃ alto) | Etiqueta IVA |
+|------------|:------------:|:----------:|:----------:|:-------------|
+| IC1 | 0.0106 | 0.0204 | **0.9994** | *Firma de estrés (alta carga)* |
+| IC2 | **0.9999** | 0.0055 | 0.0098 | *Identidad vocal (neutro)* |
+| IC3 | 0.0057 | **0.9998** | 0.0318 | *Modulación de estrés (baja carga)* |
+
+**Tabla 3 — ICA individual: correlaciones cross-vista (línea base comparativa):**
+
+| Par | Correlación |r| | Interpretación |
+|-----|:-----------:|----------------|
+| IC_D₁ ↔ IC_D₂ | 0.0003 | Sin estructura compartida |
+| IC_D₁ ↔ IC_D₃ | 0.0006 | Sin estructura compartida |
+| IC_D₂ ↔ IC_D₃ | 0.0114 | Sin estructura compartida |
+
+> **ICA individual NO puede aislar la firma de estrés cross-vista:** cada señal se procesa de
+> forma independiente y el resultado es ortogonal a las demás condiciones (r ≈ 0). IVA, al
+> procesar las tres vistas simultáneamente, identifica la dependencia estadística entre condiciones
+> del mismo hablante y separa con |r|≥0.9994 cada componente hacia su condición específica.
+
+**Perfil acústico — Tasa de Cruce por Cero (ZCR, proxy de F₀):**
+
+| Condición | ZCR media | ZCR ±1σ | Variación respecto a D₁ |
+|-----------|:---------:|:-------:|:----------------------:|
+| D₁ neutro | 239.1 Hz | ±14.9 Hz | — |
+| D₂ estrés bajo | 284.3 Hz | ±26.6 Hz | +18.9% |
+| D₃ estrés alto | 409.0 Hz | ±72.3 Hz | +71.1% |
+
+> El ZCR crece con el nivel de estrés de forma no lineal: el salto de D₂→D₃ (+44.6%) supera
+> al de D₁→D₂ (+18.9%), reflejando la combinación de mayor F₀, tremor intenso y jitter
+> supraglótico en la condición Lombard (85 dB SPL). La variabilidad (σ) también se triplica
+> de D₁ a D₃, indicador de inestabilidad fonatoria bajo estrés extremo.
+
+{f2c}
+
+*Fase 2 — Señales de las tres condiciones SUSAS y componentes IVA: firma de estrés, identidad vocal y modulación*
+
+{f2h}
+
+*Fase 2 — Heatmap |r| componentes IVA × vistas y ZCR por trama mostrando crecimiento de F₀ con estrés*
+
+---
+
+### 3.4 Comparativa ICA vs IVA e Interpretación
+
+**Resumen de desempeño:**
+
+| Método | Tarea | Métrica clave | Resultado |
+|--------|-------|:-------------:|-----------|
+| **ICA** | Separación de 2 fuentes mezcladas | SIR | **49.8–51.6 dB** (perfecto) |
+| **ICA individual** | Caracterización cross-vista | r cross-vista | 0.0003–0.0114 (nulo) |
+| **IVA** | Aislamiento de firma de estrés | r por componente | **0.9994–0.9999** (perfecto) |
+
+> **Conclusión:** ICA es óptimo cuando las fuentes se mezclan físicamente (reverberación,
+> posición de micrófonos) y las señales tienen estadísticas muy diferentes. IVA es necesario
+> cuando el objetivo es *aislar un factor latente* — en este caso, la firma de estrés fisiológico
+> — que **no aparece en ninguna vista individual** sino únicamente en la **dependencia estadística
+> entre vistas**. La identidad vocal (IC2, |r|=0.9999 con D₁) es el componente estacionario
+> invariante al estrés; la firma de estrés alto (IC1, |r|=0.9994 con D₃) captura la activación
+> del sistema nervioso autónomo: aumento de F₀ (+35%), tremor laríngeo (5 Hz), jitter
+> supraglótico y mayor energía de alta frecuencia documentados en los 32 hablantes de SUSAS.
+
+**Implicaciones para diagnóstico clínico:**
+
+- El componente IVA de identidad vocal (IC2) puede usarse como **huella biométrica** robusta al
+  estrés — invariante a la condición emocional del hablante.
+- La firma de estrés alto (IC1) es el indicador más sensible para detectar estados de Lombard
+  (entornos ruidosos), con ZCR +71% respecto al baseline.
+- La modulación de estrés bajo (IC3) es diagnóstico de carga cognitiva sostenida (cond50),
+  relevante para evaluación de fatiga en pilotos, controladores de tráfico aéreo y operadores.
 
 <div style="page-break-after: always;"></div>
 """
@@ -561,6 +734,21 @@ multivista (3 pares de índices de vegetación), clustering K-means vs GMM, eval
 del cambio y generación de mapas temáticos y trayectorias temporales.
 
 {read_script('situacion_04.py')}
+
+<div style="page-break-after: always;"></div>
+"""
+
+def apendice_c():
+    return f"""\
+## Apéndice C: Código Python — Situación 3
+
+Script de separación de fuentes de voz bajo estrés con datos sintéticos basados en SUSAS
+(LDC99S78). Incluye síntesis de señales con parámetros fisiológicos documentados, Fase 1
+(FastICA sobre mezcla lineal de dos micrófonos), Fase 2 (IVA multi-vista sobre tres
+condiciones de estrés), métricas SIR y correlación, ZCR como proxy de F₀ y generación
+de visualizaciones.
+
+{read_script('situacion_03.py')}
 """
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -575,6 +763,7 @@ def main():
         s4(),
         apendice_a(),
         apendice_b(),
+        apendice_c(),
     ]
     contenido = '\n'.join(secciones)
     with open(OUT, 'w', encoding='utf-8') as f:
